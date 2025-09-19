@@ -6,10 +6,10 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-const StartupKey = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+const startupKey = `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
 
-func addToStartup() error {
-	k, err := registry.OpenKey(registry.CURRENT_USER, StartupKey, registry.SET_VALUE)
+func AddToStartup() error {
+	k, err := registry.OpenKey(registry.CURRENT_USER, startupKey, registry.SET_VALUE)
 	if err != nil {
 		panic(err)
 	}

