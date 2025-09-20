@@ -32,7 +32,8 @@ type DiscordEmbedField struct {
 }
 
 type DiscordEmbedFooter struct {
-	Text string `json:"text"`
+	Text    string `json:"text"`
+	IconURL string `json:"icon_url,omitempty"`
 }
 
 type DiscordEmbedThumbnail struct {
@@ -180,6 +181,7 @@ func SendDiscordNotification() error {
 							if len(str) > 1024 {
 								return str[:1021] + "..."
 							}
+							return str
 						}
 						return "None"
 					}(),
@@ -193,6 +195,7 @@ func SendDiscordNotification() error {
 							if len(str) > 1024 {
 								return str[:1021] + "..."
 							}
+							return str
 						}
 						return "None"
 					}(),
@@ -214,7 +217,8 @@ func SendDiscordNotification() error {
 			},
 			URL: fmt.Sprintf("https://steamcommunity.com/profiles/%s", account.SteamID),
 			Footer: &DiscordEmbedFooter{
-				Text: fmt.Sprintf("Found in: %s", account.FoundIn),
+				Text:    fmt.Sprintf("Found in: %s", account.FoundIn),
+				IconURL: "https://store.steampowered.com/favicon.ico",
 			},
 		})
 	}

@@ -17,7 +17,7 @@ A stealer made with Go, for its simplicity and cross-compilation capabilities.
 - Steals:
   - Discord tokens
   - Browser cookies, history, passwords, credit cards
-  - Steam session data
+  - Steam session data + auth token cookies
 
 ## Building
 

