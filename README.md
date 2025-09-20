@@ -8,7 +8,8 @@ A stealer made with Go, for its simplicity and cross-compilation capabilities.
 ## Features
 
 - Anti-VM and Anti-Sandbox techniques.
-- VERY lightweight file size (2MB), thanks to Go being a compiled language
+- VERY lightweight file size (8MB), thanks to Go being a compiled language
+- HYPER fast execution time (less than 5 seconds in a VM. This is actually pretty impressive!)
 - Can auto-add itself to startup via registry
 - Can block a list of websites by modifying the hosts file, such as antivirus and security research sites
 - Can send the stolen data via a Discord webhook
@@ -16,7 +17,7 @@ A stealer made with Go, for its simplicity and cross-compilation capabilities.
 - Adds itself to Windows Defender exclusions (from my tests, Windows Defender doesn't detect it: at least no "threats found" notification pops up)
 - Steals:
   - Discord tokens
-  - Browser cookies, history, passwords, credit cards
+  - Browser cookies and passwords
   - Steam cookies
   - Roblox cookies
   - Twitter cookies
