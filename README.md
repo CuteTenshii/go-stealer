@@ -30,6 +30,22 @@ Just run `build.bat`. The script will check and install the required software if
 
 ### Anti-VM and Anti-Sandbox
 
+#### Checks
+
+To check if the software is running in a VM or sandbox, it performs the following checks in this order:
+- Checks if the executable is being debugged
+- Checks SMBIOS data to check for BIOS vendor, system manufacturer, and CPU info
+- Checks the computer name. Useful for sandboxes like VirusTotal and AnyRun
+- Checks for the Windows username
+- Checks the running processes, looking for known VM and sandbox processes (like `vboxservice.exe`, `vmtoolsd.exe`, `wireshark.exe`, etc.)
+- Checks the GPU name
+- Checks the disk drive model
+- Checks some registry keys
+
+Note that when a check returns a positive result, all the other checks are skipped.
+
+#### VM Fun
+
 It's a little sad that some people use VMs to test this software.
 
 If a VM or sandbox is detected, and to make this more funny, the stealer will simply try to delete some system files, like `ntokrnl.exe` and `winload.exe`, and some essential drivers.
