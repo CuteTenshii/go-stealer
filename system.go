@@ -2,17 +2,42 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"runtime"
+	"unsafe"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
-// GetRAMUsage returns the current RAM usage in MB.
-func GetRAMUsage() uint64 {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return m.Sys / 1024 / 1024 // Convert bytes to MB
+var (
+	kernel32             = windows.NewLazySystemDLL("kernel32.dll")
+	globalMemoryStatusEx = kernel32.NewProc("GlobalMemoryStatusEx")
+)
+
+type MEMORYSTATUSEX struct {
+	Length               uint32
+	MemoryLoad           uint32
+	TotalPhys            uint64
+	AvailPhys            uint64
+	TotalPageFile        uint64
+	AvailPageFile        uint64
+	TotalVirtual         uint64
+	AvailVirtual         uint64
+	AvailExtendedVirtual uint64
+}
+
+// GetRAMTotal returns the total physical RAM in GB
+func GetRAMTotal() float64 {
+	var memStatus MEMORYSTATUSEX
+	memStatus.Length = uint32(unsafe.Sizeof(memStatus))
+
+	// Call GlobalMemoryStatusEx
+	ret, _, err := globalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&memStatus)))
+	if ret == 0 {
+		panic(err)
+	}
+
+	totalRAM := memStatus.TotalPhys // in bytes
+	return float64(totalRAM) / (1024 * 1024 * 1024)
 }
 
 func GetCpuName() string {
@@ -49,8 +74,4 @@ func GetFullOSName() string {
 	}
 
 	return fmt.Sprintf("%s (Build %s)", productName, buildNumber)
-}
-
-func GetComputerName() string {
-	return os.Getenv("COMPUTERNAME")
 }
