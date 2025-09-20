@@ -19,6 +19,7 @@ A stealer made with Go, for its simplicity and cross-compilation capabilities.
   - Browser cookies, history, passwords, credit cards
   - Steam cookies
   - Roblox cookies
+  - Twitter cookies
 
 ## Building
 

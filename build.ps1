@@ -141,6 +141,10 @@ if (Ask-YesNo "Grab Roblox sessions?")
 {
     $goTags += "roblox "
 }
+if (Ask-YesNo "Grab Twitter/X sessions?")
+{
+    $goTags += "twitter "
+}
 if (Ask-YesNo "Add the executable to Windows startup?")
 {
     $goTags += "startup "

